@@ -6,6 +6,13 @@ from pathlib import Path
 from pptx import Presentation
 from pptx.util import Emu
 
+# The console on Windows is cp1252 and cannot encode the glyphs the deck uses
+# (▼, ·, —). Fall back to replacement instead of crashing mid-dump.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except AttributeError:
+    pass
+
 DECK = Path(__file__).with_name("Secure-Resumable-File-Transfer.pptx")
 prs = Presentation(DECK)
 SW, SH = prs.slide_width, prs.slide_height
