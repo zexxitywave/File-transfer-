@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
-project(FTP VERSION 1.0 LANGUAGES CXX)
+
+# PROJECT_VERSION is the single source of truth for the release version. It is
+# compiled into the binary (--version) and is the version referenced by
+# CHANGELOG.md, so a release and a build cannot drift apart.
+project(FTP VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -104,6 +108,12 @@ add_executable(FTP ${SRC})
 target_include_directories(FTP PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${BOOST_ASIO_INCLUDE_DIR}
+)
+
+# Reported by `FTP --version`, so a downloaded binary identifies itself.
+target_compile_definitions(FTP PRIVATE
+    FTP_VERSION="${PROJECT_VERSION}"
+    FTP_NAME="${PROJECT_NAME}"
 )
 
 if(MSVC)

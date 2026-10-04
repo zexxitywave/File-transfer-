@@ -1,0 +1,96 @@
+name: Bug report
+description: Something does not work, or works differently from what is documented
+labels: ["bug", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please fill in as much as you can: the more
+        precise the reproduction, the faster it can be fixed.
+
+        **Do not report security issues here.** Follow
+        [SECURITY.md](../blob/main/SECURITY.md) instead.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Output of `FTP --version`, or the commit hash you built.
+      placeholder: "1.0.0 (d247b1d)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Where does the problem appear to be?
+      options:
+        - Server (accepting connections, sessions)
+        - Client (sending a file, resuming)
+        - TLS / certificate verification
+        - File integrity (SHA-256)
+        - Build / toolchain
+        - Tests
+        - Documentation
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: OS, compiler and version, plus the CMake generator used.
+      placeholder: "Windows 11, GCC 15.2 (MinGW), Ninja"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps, starting from a clean build if possible.
+      placeholder: |
+        1. Generate the certificate with the command from the README.
+        2. Start the server: `.\FTP.exe server 9000`
+        3. Run the client: `.\FTP.exe client ..\big.bin 127.0.0.1 9000`
+        4. Kill the client halfway through, then rerun the same command.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What did the README or the documentation promise?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What happened instead? Paste the exact output, including
+        the log lines and the exit code.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: files
+    attributes:
+      label: File names involved
+      description: |
+        Names only, no content. If a name was rejected, the exact name matters,
+        because the validation rules are part of the behaviour under test.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and this has not been reported.
+          required: true
+        - label: I am using the latest release, or the tip of `main`.
+        - label: I can reproduce this on a clean build from the repository.

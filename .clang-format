@@ -1,0 +1,33 @@
+# Formatting rules for C++ sources.
+#
+# These match the style the code is already written in, so running clang-format
+# over the tree produces a minimal diff rather than reformatting everything.
+# Run:  clang-format -i src/*.cpp include/*.hpp
+---
+Language: Cpp
+BasedOnStyle: Google
+Standard: c++20
+
+# The existing sources use a 120 column limit; the longest current line is 104.
+ColumnLimit: 120
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+# Braces attach to the function signature, e.g. `void Session::run() {`.
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+
+# `int* p` rather than `int *p`.
+DerivePointerAlignment: false
+PointerAlignment: Right
+ReferenceAlignment: Pointer
+
+# `public:` sits at the class indentation level rather than one level in.
+AccessModifierOffset: -4
+
+SpaceBeforeParens: ControlStatements
+...

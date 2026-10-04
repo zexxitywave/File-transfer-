@@ -1,0 +1,25 @@
+# EditorConfig: https://editorconfig.org
+# Keeps line endings and indentation consistent across IDEs and shells, which
+# matters on Windows where Git may otherwise rewrite LF as CRLF.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml,json}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{bat,cmd,ps1}]
+end_of_line = crlf
+
+[Makefile]
+indent_style = tab

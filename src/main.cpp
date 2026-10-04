@@ -28,6 +28,15 @@ namespace {
 constexpr unsigned short DEFAULT_PORT = 9000;
 constexpr const char* DEFAULT_HOST = "127.0.0.1";
 
+// Defined by CMake from the project version; the fallback keeps the file
+// compilable on its own.
+#ifndef FTP_VERSION
+#define FTP_VERSION "0.0.0-dev"
+#endif
+#ifndef FTP_NAME
+#define FTP_NAME "FTP"
+#endif
+
 // Rejects anything that is not a plain decimal port number in 1-65535, so that
 // a typo such as "70000" is reported instead of being silently wrapped around
 // by the unsigned short conversion.
@@ -49,13 +58,23 @@ bool parse_port(const std::string& text, unsigned short& port) {
     return true;
 }
 
-void print_usage(const char* program) {
-    std::cerr << "Usage:\n"
-              << "  " << program << " server [port]\n"
-              << "  " << program << " client <filepath> [host] [port] [--ca <file> | --insecure]\n"
-              << "\n"
-              << "  --ca <file>  verify the server certificate against this CA file\n"
-              << "  --insecure   skip certificate verification (never use this on a real network)\n";
+void print_version(const char* program) {
+    std::cout << program << " " << FTP_VERSION << '\n'
+              << "Secure resumable file transfer over TLS.\n"
+              << "Licensed under the MIT License; see LICENSE.\n";
+}
+
+// Usage goes to stderr by default because it is usually printed after a command
+// line mistake; --help sends it to stdout so it can be piped or paged.
+void print_usage(const char* program, std::ostream& out = std::cerr) {
+    out << "Usage:\n"
+        << "  " << program << " server [port]\n"
+        << "  " << program << " client <filepath> [host] [port] [--ca <file> | --insecure]\n"
+        << "  " << program << " --help\n"
+        << "  " << program << " --version\n"
+        << "\n"
+        << "  --ca <file>  verify the server certificate against this CA file\n"
+        << "  --insecure   skip certificate verification (never use this on a real network)\n";
 }
 
 // The directory the running executable lives in. Assets are looked for here
@@ -244,6 +263,18 @@ int main(int argc, char* argv[]) {
     std::cout << std::unitbuf;
 
     const std::string mode = argv[1];
+
+    // --help and --version are answered before anything else, so a user who
+    // only wants the usage text does not need a certificate or a peer.
+    if (mode == "--help" || mode == "-h" || mode == "-?") {
+        print_usage(argc > 0 ? argv[0] : "FTP", std::cout);
+        return 0;
+    }
+    if (mode == "--version" || mode == "-V") {
+        print_version(argc > 0 ? argv[0] : "FTP");
+        return 0;
+    }
+
     boost::asio::io_context io;
 
     try {

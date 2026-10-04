@@ -1,0 +1,23 @@
+# Only two ecosystems are tracked, because only two are pinned in the
+# repository: the GitHub Actions used by CI and the release workflow, and the
+# Ubuntu packages installed by the Linux job. Dependabot does not manage MSYS2
+# packages, and Boost and OpenSSL are resolved from the system rather than
+# vendored, so there is nothing for it to update there.
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    labels: ["dependencies"]
+    groups:
+      # One pull request for all action bumps, rather than one per action.
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: ubuntu
+    directory: "/"
+    schedule:
+      interval: monthly
+    labels: ["dependencies"]

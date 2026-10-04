@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/zexxitywave/File-transfer-/security/advisories/new
+    about: Report privately. See SECURITY.md; please do not open a public issue.
+  - name: Question or usage help
+    url: https://github.com/zexxitywave/File-transfer-/discussions
+    about: How to build, run and troubleshoot the project.
+  - name: Roadmap and limitations
+    url: https://github.com/zexxitywave/File-transfer-/blob/main/README.md#roadmap
+    about: Known limitations and planned work, including the download path.

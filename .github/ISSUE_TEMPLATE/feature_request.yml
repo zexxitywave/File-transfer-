@@ -1,0 +1,65 @@
+name: Feature request
+description: Suggest a capability, an improvement, or a fix for a documented limitation
+labels: ["enhancement", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most of the roadmap already lives in the README under
+        [Future Improvements](../blob/main/README.md#roadmap): download
+        support, authentication, per-user storage, queueing, recursive
+        transfers, transfer metadata, IPv6. If your idea is one of those, a
+        vote or a comment on the relevant section is more useful than a new
+        issue. Please open an issue for anything that is not listed.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to accomplish that is not possible today?
+        Describe the situation, not the solution.
+      placeholder: |
+        A deployment has to accept files from a partner over a link that drops
+        every few minutes. Resuming works, but the partner cannot tell whether
+        the file they sent arrived complete until they ask us.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: What should the program do differently?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Protocol / wire format
+        - Client
+        - Server
+        - Security / TLS
+        - Storage and resume
+        - Testing / CI
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Including "I can work around this by ...".
+
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility
+      description: |
+        The wire protocol is not versioned: client and server must be the same
+        build. Would this change that? If it would, it is a breaking change
+        and needs a protocol version and a migration story.

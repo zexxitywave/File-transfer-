@@ -1,0 +1,206 @@
+name: Release
+
+# A tag matching v<major>.<minor>.<patch> builds the project on both platforms,
+# packages the binary with the runtime DLLs it needs on Windows, publishes the
+# archives to the GitHub release, and attaches SHA-256 checksums.
+#
+# The whole build-and-test gate still runs here: nothing is published that has
+# not just passed the same steps CI uses, so a broken tag cannot ship.
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify tag matches the declared version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the version declared in CMakeLists.txt
+        id: check
+        run: |
+          set -euo pipefail
+          declared=$(sed -n 's/^project(FTP VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          tagged=${GITHUB_REF_NAME#v}
+          echo "CMakeLists.txt declares: $declared"
+          echo "tag says:               $tagged"
+          if [ "$declared" != "$tagged" ]; then
+            echo "::error::The tag v$tagged does not match project(FTP VERSION $declared)."
+            echo "::error::Update CMakeLists.txt (and CHANGELOG.md) before tagging."
+            exit 1
+          fi
+          echo "version=$declared" >> "$GITHUB_OUTPUT"
+
+  linux:
+    name: Linux (build + smoke test + package)
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build g++ libssl-dev libboost-dev
+
+      - name: Generate the development certificate
+        run: |
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout tls_key/server.key -out tls_key/server.crt \
+            -days 825 -subj "/CN=localhost" \
+            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Smoke test
+        run: bash tests/smoke_test.sh build 9400
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          version="${{ needs.verify.outputs.version }}"
+          staging="ftp-server-$version-linux-x86_64"
+          mkdir -p "$staging/docs"
+          cp build/FTP "$staging/FTP"
+          cp LICENSE README.md CHANGELOG.md "$staging/"
+          cp docs/*.md "$staging/docs/"
+          chmod +x "$staging/FTP"
+          tar -czf "$staging.tar.gz" "$staging"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: "ftp-server-*-linux-x86_64.tar.gz"
+          retention-days: 7
+          if-no-files-found: error
+
+  windows:
+    name: Windows (build + full end-to-end suite + package)
+    needs: verify
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ucrt64
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-boost
+          update: true
+
+      - name: Generate the development certificate
+        run: |
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout tls_key/server.key -out tls_key/server.crt \
+            -days 825 -subj "/CN=localhost" \
+            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      # The full suite, not the smoke test: a release must pass everything CI
+      # knows about. It transfers several hundred megabytes, hence the 1800s
+      # timeout configured in CMakeLists.txt.
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $version = "${{ needs.verify.outputs.version }}"
+          $staging = "ftp-server-$version-windows-x86_64"
+          New-Item -ItemType Directory -Path "$staging/docs" -Force | Out-Null
+          # The executable plus the runtime DLLs CMake copied next to it:
+          # without them Windows fails the launch with 0xC0000135 before
+          # main() runs.
+          Copy-Item build/FTP.exe $staging
+          Get-ChildItem build -Filter *.dll | Copy-Item -Destination $staging
+          Copy-Item LICENSE, README.md, CHANGELOG.md $staging
+          Copy-Item docs/*.md "$staging/docs"
+          Compress-Archive -Path $staging -DestinationPath "$staging.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: "ftp-server-*-windows-x86_64.zip"
+          retention-days: 7
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: [verify, linux, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Checksum the archives
+        run: |
+          set -euo pipefail
+          cd artifacts
+          sha256sum ./*/*.tar.gz ./*/*.zip > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Extract the release notes from CHANGELOG.md
+        run: |
+          set -euo pipefail
+          version="${{ needs.verify.outputs.version }}"
+          # Everything under "## [<version>] - <date>" up to the next heading, so
+          # the published notes cannot drift from the committed changelog. Link
+          # definitions ("[1.0.0]: https://...") are dropped.
+          awk -v heading="## [$version]" '
+            !capture && index($0, heading) == 1 { capture = 1; next }
+            capture && /^## / { exit }
+            capture && /^\[?[0-9]+\.[0-9]+\.[0-9]+/ { next }
+            capture { print }
+          ' CHANGELOG.md > NOTES.md
+          if [ ! -s NOTES.md ]; then
+            echo "::error::No $version section found in CHANGELOG.md"
+            exit 1
+          fi
+          echo "--- notes ---"
+          cat NOTES.md
+
+      - name: Create the release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "v${{ needs.verify.outputs.version }}"
+          tag_name: "v${{ needs.verify.outputs.version }}"
+          body_path: NOTES.md
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/*/*.tar.gz
+            artifacts/*/*.zip
+            artifacts/SHA256SUMS.txt

@@ -55,6 +55,9 @@ include/boost/
 # Logs
 *.log
 
+# Files uploaded while testing a locally started server
+received_*
+
 # TLS keys / certificates
 tls_key/
 *.pem

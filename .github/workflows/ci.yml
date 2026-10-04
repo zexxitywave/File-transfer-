@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref, so a force-push or a rapid series of
+# commits does not leave five stale builds competing.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux (build + smoke test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build g++ libssl-dev libboost-dev
+
+      # Asio ships as headers, so Boost needs no separate install step.
+
+      - name: Generate the development certificate
+        run: |
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout tls_key/server.key -out tls_key/server.crt \
+            -days 825 -subj "/CN=localhost" \
+            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Smoke test
+        run: bash tests/smoke_test.sh build 9300
+
+      - name: Upload the certificate expiry date
+        if: always()
+        run: openssl x509 -enddate -noout -in tls_key/server.crt
+
+  windows:
+    name: Windows (build + full end-to-end suite)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ucrt64
+          # The same toolchain family as the local CLion build, so CI catches
+          # MinGW-specific problems such as missing runtime DLLs.
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-boost
+          update: true
+
+      - name: Generate the development certificate
+        run: |
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout tls_key/server.key -out tls_key/server.crt \
+            -days 825 -subj "/CN=localhost" \
+            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      # The suite is registered with CTest by tests/run_tests.ps1, which starts
+      # real servers and drives real clients over real TLS. It transfers several
+      # hundred megabytes, so the 1800s timeout configured in CMakeLists.txt is
+      # deliberate.
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Upload test artefacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-output
+          path: |
+            build/received_*
+            build/*.log
+          retention-days: 7
+          if-no-files-found: ignore
