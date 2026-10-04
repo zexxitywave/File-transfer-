@@ -368,8 +368,8 @@ for label, value, mono in rows:
          spacing=1.15)
     y += Inches(0.58) if mono else Inches(0.34)
 
-text(s, "Secure Resumable File Transfer  ·  August 2026", Inches(1.05),
-     Inches(6.42), Inches(7), Inches(0.3), 11, color=GREY_LIGHT)
+text(s, "Secure Resumable File Transfer  ·  v1.0.0, September 2026",
+     Inches(1.05), Inches(6.42), Inches(7), Inches(0.3), 11, color=GREY_LIGHT)
 
 # ============================================================== slide 2 ======
 s = new_slide()
@@ -678,14 +678,14 @@ note(s, "Not yet done: the full 997-file bulk run, and a cross-machine transfer.
 
 table(s, ["Test group", "Checks", "Covers"], [
     ("Command line handling", "10", "FR-17, FR-19"),
-    ("Clean transfer", "6", "FR-01, FR-02, FR-06, FR-14"),
+    ("Clean transfer", "6", "FR-01, FR-02, FR-06, FR-14, FR-19"),
     ("Certificate verification", "4+1 skip", "FR-03, FR-04, FR-05"),
     ("Integrity", "5", "FR-12, FR-13, FR-18"),
     ("Resuming", "5", "FR-08, FR-09"),
     ("Interruption", "5", "FR-20"),
     ("Concurrency", "14", "FR-10, FR-11"),
     ("Server with no certificate", "1", "FR-16"),
-], Inches(7.28), Inches(2.78), Inches(5.42), widths=[3.0, 1.3, 2.9], size=10,
+], Inches(7.28), Inches(2.78), Inches(5.42), widths=[2.7, 1.3, 3.2], size=9.5,
     head_size=10.5, row_h=Inches(0.235), head_h=Inches(0.3))
 
 card(s, Inches(7.28), Inches(5.06), Inches(5.42), Inches(1.5),
